@@ -131,3 +131,39 @@ mostrarMensaje("Se actualizó el producto en la posición " + indiceActualizar);
 // Estado final
 mostrarMensaje("=== Estado final del stock ===");
 mostrarStock(stockVerduleria);
+
+// ---- Método de búsqueda 1: find ----
+// Busca un producto puntual según lo que ingrese el usuario
+const nombreABuscar = prompt("FIND: Ingresá el nombre exacto de un producto para buscarlo en el stock:");
+const productoEncontrado = stockVerduleria.find(
+    p => p.nombre.toLowerCase() === (nombreABuscar || "").toLowerCase()
+);
+ 
+if (productoEncontrado) {
+    mostrarMensaje("Producto encontrado con find():");
+    console.log(productoEncontrado);
+} else {
+    mostrarMensaje(`No se encontró ningún producto llamado "${nombreABuscar}".`);
+}
+ 
+// ---- Método de búsqueda 2: filter ----
+// Filtra los productos que tienen stock disponible (stock > 0)
+const productosDisponibles = stockVerduleria.filter(p => p.stock > 0);
+mostrarMensaje("Productos con stock disponible (filter):");
+console.log(productosDisponibles);
+ 
+// ---- Método de transformación 1: map ----
+// Genera un resumen en texto de cada producto (transforma cada objeto en un string)
+const resumenProductos = stockVerduleria.map(
+    p => `${p.nombre} | $${p.precio} | Stock: ${p.stock}`
+);
+mostrarMensaje("Resumen de productos (map):");
+resumenProductos.forEach(linea => console.log(linea));
+ 
+// ---- Método de transformación 2: reduce ----
+// Calcula el total invertido en stock (precio * stock de cada producto, sumado)
+const totalInvertidoEnStock = stockVerduleria.reduce(
+    (acumulado, p) => acumulado + (p.precio * p.stock),
+    0
+);
+mostrarMensaje("Total invertido en stock (reduce): $" + totalInvertidoEnStock.toFixed(2));
