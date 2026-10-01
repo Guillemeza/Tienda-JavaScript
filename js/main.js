@@ -28,28 +28,61 @@ class Producto {
     }
 }
  
-// ---- 2. Persistencia con localStorage ----
+// ---- 2. Selección de elementos del DOM ----
+const contenedorItems = document.getElementById("contenedor-items");
+const totalInvertidoSpan = document.getElementById("total-invertido");
+const mensajeForm = document.getElementById("mensaje-form");
+const notificacion = document.getElementById("notificacion");
+ 
+const inputNombre = document.getElementById("input-nombre");
+const inputPrecio = document.getElementById("input-precio");
+const inputCategoria = document.getElementById("input-categoria");
+const inputStock = document.getElementById("input-stock");
+const btnAgregar = document.getElementById("btn-agregar");
+const btnVaciar = document.getElementById("btn-vaciar");
+ 
+const inputBusqueda = document.getElementById("input-busqueda");
+ 
+// ---- 3. Persistencia con localStorage (con manejo de errores) ----
  
 // Guarda el array completo (usa JSON.stringify para serializar objetos)
 function guardarStock(lista) {
     localStorage.setItem(CLAVE_STORAGE, JSON.stringify(lista));
 }
  
-// Recupera el array guardado y reconstruye instancias de Producto
-// (JSON.parse devuelve objetos planos, no instancias de la clase)
+// Recupera el array guardado y reconstruye instancias de Producto.
+// Se usa try-catch-finally porque JSON.parse puede fallar si los datos
+// guardados llegaran a estar corruptos o incompletos.
 function cargarStock() {
-    const datosGuardados = localStorage.getItem(CLAVE_STORAGE);
+    let resultado = null;
  
-    if (!datosGuardados) return null;
+    try {
+        const datosGuardados = localStorage.getItem(CLAVE_STORAGE);
  
-    const productosPlanos = JSON.parse(datosGuardados);
+        if (!datosGuardados) {
+            return null;
+        }
  
-    // Destructuring: extraemos cada propiedad del objeto plano
-    return productosPlanos.map(({ id, nombre, precio, categoria, stock }) => {
-        const producto = new Producto(nombre, precio, categoria, stock);
-        producto.id = id; // conservamos el id original guardado
-        return producto;
-    });
+        const productosPlanos = JSON.parse(datosGuardados);
+ 
+        // Destructuring: extraemos cada propiedad del objeto plano
+        resultado = productosPlanos.map(({ id, nombre, precio, categoria, stock }) => {
+            const producto = new Producto(nombre, precio, categoria, stock);
+            producto.id = id; // conservamos el id original guardado
+            return producto;
+        });
+    } catch (error) {
+        // Si los datos guardados están corruptos, avisamos y arrancamos de cero
+        mensajeForm.textContent = "⚠️ Los datos guardados estaban dañados. Se reinició el stock.";
+        mensajeForm.classList.add("error");
+        localStorage.removeItem(CLAVE_STORAGE);
+        resultado = null;
+    } finally {
+        // Este bloque se ejecuta siempre, haya fallado o no la lectura
+        resultado ??= [];
+    }
+ 
+    return resultado.length > 0 ? resultado : null;
 }
  
 // Borra todo el stock, tanto del array como del localStorage
@@ -59,7 +92,7 @@ function vaciarStock() {
     renderizarListaActual();
 }
  
-// ---- 3. Array de objetos (se recupera de localStorage si existe) ----
+// ---- 4. Array de objetos (se recupera de localStorage si existe) ----
 let stockVerduleria = cargarStock() ?? [
     new Producto("Tomate", 500, "Verdura", 50),
     new Producto("Papa", 300, "Verdura", 100),
@@ -77,20 +110,6 @@ if (stockVerduleria.length > 0) {
  
 // Si el storage no tenía nada guardado todavía, lo inicializamos ahora
 localStorage.getItem(CLAVE_STORAGE) ?? guardarStock(stockVerduleria);
- 
-// ---- 4. Selección de elementos del DOM ----
-const contenedorItems = document.getElementById("contenedor-items");
-const totalInvertidoSpan = document.getElementById("total-invertido");
-const mensajeForm = document.getElementById("mensaje-form");
- 
-const inputNombre = document.getElementById("input-nombre");
-const inputPrecio = document.getElementById("input-precio");
-const inputCategoria = document.getElementById("input-categoria");
-const inputStock = document.getElementById("input-stock");
-const btnAgregar = document.getElementById("btn-agregar");
-const btnVaciar = document.getElementById("btn-vaciar");
- 
-const inputBusqueda = document.getElementById("input-busqueda");
  
 // ---- 5. Renderizado dinámico ----
 function renderizarProductos(lista) {
@@ -185,7 +204,24 @@ function renderizarListaActual() {
     renderizarProductos(listaAMostrar);
 }
  
-// ---- 6. Gestión de eventos ----
+// ---- 6. Notificación asincrónica (setTimeout) ----
+// Muestra un mensaje complementario (no bloqueante) unos segundos después
+// de haber entrado al simulador, sin interrumpir el resto de la interacción.
+function mostrarNotificacion(mensaje) {
+    notificacion.textContent = mensaje;
+    notificacion.classList.add("mostrar");
+ 
+    // La notificación se oculta sola después de unos segundos
+    setTimeout(() => {
+        notificacion.classList.remove("mostrar");
+    }, 6000);
+}
+ 
+setTimeout(() => {
+    mostrarNotificacion("🎟️ ¡Cupón del día! 15% OFF en tu próxima compra en Verdulería FERNICO.");
+}, 4000);
+ 
+// ---- 7. Gestión de eventos ----
  
 // Evento de click: agregar un nuevo producto al array y al storage
 btnAgregar.addEventListener("click", () => {
@@ -230,5 +266,5 @@ inputBusqueda.addEventListener("keyup", () => {
     renderizarListaActual();
 });
  
-// ---- 7. Render inicial al cargar la página ----
+// ---- 8. Render inicial al cargar la página ----
 renderizarProductos(stockVerduleria);
