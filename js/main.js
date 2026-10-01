@@ -1,35 +1,34 @@
-// Simulador de gestión de stock - Verdulería
+// Verdulería FERNICO - Simulador de stock
+// Interacción 100% DOM (sin prompt/alert/console.log)
 
-// ---- 1. Creación de la Clase ----
+// ---- 1. Clase Producto ----
 class Producto {
-    // Constructor con 4 parámetros para inicializar propiedades
+    static contador = 1; // para asignar un id único a cada producto
+ 
     constructor(nombre, precio, categoria, stock) {
+        this.id = Producto.contador++;
         this.nombre = nombre;
         this.precio = precio;
         this.categoria = categoria;
         this.stock = stock;
     }
  
-    // ---- 2. Añadir Comportamiento ----
-    // Método que resta del stock (operación lógica)
+    // Resta unidades del stock
     vender(cantidad) {
         if (cantidad > this.stock) {
-            console.log(`No hay suficiente stock de ${this.nombre}. Stock actual: ${this.stock}`);
-        } else {
-            this.stock -= cantidad;
-            console.log(`Se vendieron ${cantidad} unidades de ${this.nombre}. Stock restante: ${this.stock}`);
+            return false;
         }
+        this.stock -= cantidad;
+        return true;
     }
  
-    // Método que modifica el precio aplicando un descuento
+    // Aplica un descuento sobre el precio actual
     aplicarDescuento(porcentaje) {
-        const precioAnterior = this.precio;
         this.precio = this.precio - (this.precio * porcentaje / 100);
-        console.log(`${this.nombre}: precio actualizado de $${precioAnterior} a $${this.precio.toFixed(2)}`);
     }
 }
  
-// Array con nombre semántico, inicializado con al menos 5 elementos (ahora objetos Producto)
+// ---- 2. Array de objetos (base de datos simulada) ----
 let stockVerduleria = [
     new Producto("Tomate", 500, "Verdura", 50),
     new Producto("Papa", 300, "Verdura", 100),
@@ -38,132 +37,137 @@ let stockVerduleria = [
     new Producto("Lechuga", 250, "Verdura", 20)
 ];
  
-// Función 1: entrada de datos (con parámetro implícito vía prompt, y con return)
-function solicitarProducto() {
-    const nombreProducto = prompt("¿Qué producto querés agregar al stock?");
-    return nombreProducto;
-}
+// ---- 3. Selección de elementos del DOM ----
+const contenedorItems = document.getElementById("contenedor-items");
+const totalInvertidoSpan = document.getElementById("total-invertido");
+const mensajeForm = document.getElementById("mensaje-form");
  
-// Función 2: procesamiento - agrega el producto al array (con parámetros)
-function agregarProducto(lista, producto) {
-    lista.push(producto);
-    return lista.length;
-}
+const inputNombre = document.getElementById("input-nombre");
+const inputPrecio = document.getElementById("input-precio");
+const inputCategoria = document.getElementById("input-categoria");
+const inputStock = document.getElementById("input-stock");
+const btnAgregar = document.getElementById("btn-agregar");
  
-// Función 3: salida, función flecha simple
-const mostrarMensaje = (mensaje) => {
-    console.log(mensaje);
-};
+const inputBusqueda = document.getElementById("input-busqueda");
  
-// Función 4: recorrido del array con for...of (Reporte Iterativo)
-function mostrarStock(lista) {
-    console.log("--- Stock actual de la verduleria ---");
-    for (const producto of lista) {
-        console.log(`Producto: ${producto.nombre} | Precio: $${producto.precio} | Categoria: ${producto.categoria} | Stock: ${producto.stock}`);
+// ---- 4. Renderizado dinámico ----
+function renderizarProductos(lista) {
+    contenedorItems.innerHTML = "";
+ 
+    if (lista.length === 0) {
+        contenedorItems.innerHTML = `<p class="vacio">No se encontraron productos.</p>`;
+        actualizarTotal(lista);
+        return;
     }
+ 
+    lista.forEach((producto) => {
+        const card = document.createElement("div");
+        card.classList.add("producto-card");
+        card.innerHTML = `
+            <h3>${producto.nombre}</h3>
+            <p class="precio">$${producto.precio.toFixed(2)}</p>
+            <p class="categoria">${producto.categoria}</p>
+            <p class="stock ${producto.stock === 0 ? "sin-stock" : ""}">Stock: ${producto.stock}</p>
+            <div class="producto-actions">
+                <button class="btn-accion btn-vender" data-id="${producto.id}">Vender 1</button>
+                <button class="btn-accion btn-descuento" data-id="${producto.id}">-10%</button>
+                <button class="btn-accion btn-eliminar" data-id="${producto.id}">🗑️</button>
+            </div>
+        `;
+        contenedorItems.appendChild(card);
+    });
+ 
+    actualizarTotal(lista);
+    activarBotonesDeAccion();
 }
  
-// ---- 3. Instanciación ----
-// Al menos tres objetos diferentes usando "new", guardados en constantes
-const tomate = stockVerduleria[0];
-const papa = stockVerduleria[1];
-const cebolla = stockVerduleria[2];
+// Calcula y muestra el total invertido en stock (reduce)
+function actualizarTotal(lista) {
+    const total = lista.reduce((acumulado, p) => acumulado + (p.precio * p.stock), 0);
+    totalInvertidoSpan.textContent = "$" + total.toFixed(2);
+}
  
-// ---- 4. Verificación ----
-// Ejecución de métodos y console.log de los resultados
-mostrarMensaje("=== Estado inicial del stock ===");
-mostrarStock(stockVerduleria);
+// Conecta los botones de cada tarjeta con sus acciones (se llama después de cada render)
+function activarBotonesDeAccion() {
+    document.querySelectorAll(".btn-vender").forEach((btn) => {
+        btn.addEventListener("click", (e) => {
+            const id = Number(e.target.dataset.id);
+            const producto = stockVerduleria.find((p) => p.id === id);
+            if (producto) {
+                producto.vender(1);
+                renderizarListaActual();
+            }
+        });
+    });
  
-tomate.vender(10);
-papa.aplicarDescuento(15);
-cebolla.vender(5);
-cebolla.aplicarDescuento(10);
+    document.querySelectorAll(".btn-descuento").forEach((btn) => {
+        btn.addEventListener("click", (e) => {
+            const id = Number(e.target.dataset.id);
+            const producto = stockVerduleria.find((p) => p.id === id);
+            if (producto) {
+                producto.aplicarDescuento(10);
+                renderizarListaActual();
+            }
+        });
+    });
  
-mostrarMensaje("=== Estado del stock luego de operar con los productos ===");
-mostrarStock(stockVerduleria);
+    document.querySelectorAll(".btn-eliminar").forEach((btn) => {
+        btn.addEventListener("click", (e) => {
+            const id = Number(e.target.dataset.id);
+            const indice = stockVerduleria.findIndex((p) => p.id === id);
+            if (indice !== -1) {
+                stockVerduleria.splice(indice, 1);
+                renderizarListaActual();
+            }
+        });
+    });
+}
  
-// ---- 5. Contexto ----
-// El simulador principal sigue con la misma lógica y herramientas (bucle, condicional, prompt/alert)
-let continuar = "si";
- 
-while (continuar === "si") {
-    // Llamada a función de entrada
-    const nombreNuevoProducto = solicitarProducto();
- 
-    // Se crea un nuevo objeto Producto con la clase definida arriba
-    const nuevoProducto = new Producto(nombreNuevoProducto, 0, "Sin categorizar", 0);
- 
-    // Llamada a función de procesamiento (manipulación dinámica: push)
-    const totalProductos = agregarProducto(stockVerduleria, nuevoProducto);
- 
-    // Condicional dentro del bucle
-    if (totalProductos > 10) {
-        alert("Atención: el stock superó los 10 productos distintos.");
+// Vuelve a renderizar respetando si hay un filtro de búsqueda activo
+function renderizarListaActual() {
+    const texto = inputBusqueda.value.toLowerCase().trim();
+    if (texto === "") {
+        renderizarProductos(stockVerduleria);
     } else {
-        alert(nuevoProducto.nombre + " fue agregado. Total de productos: " + totalProductos);
+        const filtrados = stockVerduleria.filter((p) => p.nombre.toLowerCase().includes(texto));
+        renderizarProductos(filtrados);
+    }
+}
+ 
+// ---- 5. Gestión de eventos ----
+ 
+// Evento de click: agregar un nuevo producto al array
+btnAgregar.addEventListener("click", () => {
+    const nombre = inputNombre.value.trim();
+    const precio = parseFloat(inputPrecio.value);
+    const categoria = inputCategoria.value.trim() || "General";
+    const stock = parseInt(inputStock.value);
+ 
+    if (!nombre || isNaN(precio) || precio < 0 || isNaN(stock) || stock < 0) {
+        mensajeForm.textContent = "⚠️ Completá nombre, precio y stock con valores válidos.";
+        mensajeForm.classList.add("error");
+        return;
     }
  
-    continuar = prompt("¿Querés agregar otro producto? (si/no)").toLowerCase();
-}
+    const nuevoProducto = new Producto(nombre, precio, categoria, stock);
+    stockVerduleria.push(nuevoProducto);
  
-// Agregar un producto al principio con unshift
-stockVerduleria.unshift(new Producto("Ajo", 200, "Oferta del día", 15));
+    mensajeForm.textContent = `✅ "${nombre}" fue agregado al stock.`;
+    mensajeForm.classList.remove("error");
  
-// Eliminar el último producto agregado y guardarlo en una variable
-const eliminado = stockVerduleria.pop();
-mostrarMensaje("Se ha eliminado el elemento: " + eliminado.nombre);
+    // Limpiar inputs
+    inputNombre.value = "";
+    inputPrecio.value = "";
+    inputCategoria.value = "";
+    inputStock.value = "";
  
-// Búsqueda y validación
-const nombreBuscado = prompt("Ingresá un producto para buscar en el stock:");
-const posicion = stockVerduleria.findIndex(p => p.nombre === nombreBuscado);
+    renderizarListaActual();
+});
  
-if (posicion !== -1) {
-    mostrarMensaje(nombreBuscado + " se encuentra en la posición " + posicion);
-} else {
-    mostrarMensaje(nombreBuscado + " no está en stock.");
-}
+// Evento de teclado: barra de búsqueda que filtra en vivo
+inputBusqueda.addEventListener("keyup", () => {
+    renderizarListaActual();
+});
  
-// Actualización por índice con splice
-const indiceActualizar = 0;
-stockVerduleria.splice(indiceActualizar, 1, new Producto("Producto actualizado", 100, "General", 10));
-mostrarMensaje("Se actualizó el producto en la posición " + indiceActualizar);
- 
-// Estado final
-mostrarMensaje("=== Estado final del stock ===");
-mostrarStock(stockVerduleria);
-
-// ---- Método de búsqueda 1: find ----
-// Busca un producto puntual según lo que ingrese el usuario
-const nombreABuscar = prompt("FIND: Ingresá el nombre exacto de un producto para buscarlo en el stock:");
-const productoEncontrado = stockVerduleria.find(
-    p => p.nombre.toLowerCase() === (nombreABuscar || "").toLowerCase()
-);
- 
-if (productoEncontrado) {
-    mostrarMensaje("Producto encontrado con find():");
-    console.log(productoEncontrado);
-} else {
-    mostrarMensaje(`No se encontró ningún producto llamado "${nombreABuscar}".`);
-}
- 
-// ---- Método de búsqueda 2: filter ----
-// Filtra los productos que tienen stock disponible (stock > 0)
-const productosDisponibles = stockVerduleria.filter(p => p.stock > 0);
-mostrarMensaje("Productos con stock disponible (filter):");
-console.log(productosDisponibles);
- 
-// ---- Método de transformación 1: map ----
-// Genera un resumen en texto de cada producto (transforma cada objeto en un string)
-const resumenProductos = stockVerduleria.map(
-    p => `${p.nombre} | $${p.precio} | Stock: ${p.stock}`
-);
-mostrarMensaje("Resumen de productos (map):");
-resumenProductos.forEach(linea => console.log(linea));
- 
-// ---- Método de transformación 2: reduce ----
-// Calcula el total invertido en stock (precio * stock de cada producto, sumado)
-const totalInvertidoEnStock = stockVerduleria.reduce(
-    (acumulado, p) => acumulado + (p.precio * p.stock),
-    0
-);
-mostrarMensaje("Total invertido en stock (reduce): $" + totalInvertidoEnStock.toFixed(2));
+// ---- 6. Render inicial al cargar la página ----
+renderizarProductos(stockVerduleria);

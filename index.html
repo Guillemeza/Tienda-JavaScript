@@ -3,11 +3,63 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+    <title>Verdulería FERNICO</title>
     <link rel="stylesheet" href="./css/style.css">
     <script defer src="./js/main.js"></script>
 </head>
 <body>
-    
+ 
+    <div class="veggie-strip" aria-hidden="true">🍅 🥕 🥬 🧅 🫑 🍋 🥔 🍅 🥕 🥬 🧅 🫑 🍋 🥔</div>
+ 
+    <div class="container">
+ 
+        <header class="header">
+            <p class="eyebrow">🧺 Bienvenido a</p>
+            <h1>Verdulería <span class="brand">FERNICO</span></h1>
+            <p class="subtitle">Simulador de gestión de stock — Interacción 100% DOM</p>
+        </header>
+ 
+        <main>
+ 
+            <!-- Formulario para agregar productos -->
+            <section class="card" id="form-section">
+                <h2>➕ Agregar producto</h2>
+                <div class="form-grid">
+                    <input type="text" id="input-nombre" placeholder="Nombre">
+                    <input type="number" id="input-precio" placeholder="Precio" min="0">
+                    <input type="text" id="input-categoria" placeholder="Categoría">
+                    <input type="number" id="input-stock" placeholder="Stock" min="0">
+                    <button id="btn-agregar" class="btn-primary">Agregar al stock</button>
+                </div>
+                <p id="mensaje-form" class="mensaje"></p>
+            </section>
+ 
+            <!-- Barra de búsqueda -->
+            <section class="card" id="busqueda-section">
+                <h2>🔍 Buscar producto</h2>
+                <input type="text" id="input-busqueda" placeholder="Escribí el nombre para filtrar en vivo...">
+            </section>
+ 
+            <!-- Contenedor dinámico de productos -->
+            <section class="card" id="stock-section">
+                <h2>📦 Stock actual</h2>
+                <div id="contenedor-items"></div>
+            </section>
+ 
+            <!-- Total invertido -->
+            <section class="card highlight" id="total-section">
+                <p>💵 Total invertido en stock: <span id="total-invertido">$0</span></p>
+            </section>
+ 
+        </main>
+ 
+        <footer class="footer">
+            <p>🥬 Verdulería FERNICO — Proyecto de práctica en JavaScript (DOM + Eventos)</p>
+        </footer>
+ 
+    </div>
+ 
+    <div class="veggie-strip" aria-hidden="true">🍅 🥕 🥬 🧅 🫑 🍋 🥔 🍅 🥕 🥬 🧅 🫑 🍋 🥔</div>
+ 
 </body>
 </html>
