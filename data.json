@@ -1,0 +1,44 @@
+[
+  {
+    "nombre": "Tomate",
+    "precio": 500,
+    "categoria": "Verdura",
+    "stock": 50
+  },
+  {
+    "nombre": "Papa",
+    "precio": 300,
+    "categoria": "Verdura",
+    "stock": 100
+  },
+  {
+    "nombre": "Cebolla",
+    "precio": 400,
+    "categoria": "Verdura",
+    "stock": 30
+  },
+  {
+    "nombre": "Zanahoria",
+    "precio": 350,
+    "categoria": "Verdura",
+    "stock": 40
+  },
+  {
+    "nombre": "Lechuga",
+    "precio": 250,
+    "categoria": "Verdura",
+    "stock": 20
+  },
+  {
+    "nombre": "Manzana",
+    "precio": 600,
+    "categoria": "Fruta",
+    "stock": 35
+  },
+  {
+    "nombre": "Banana",
+    "precio": 450,
+    "categoria": "Fruta",
+    "stock": 60
+  }
+]

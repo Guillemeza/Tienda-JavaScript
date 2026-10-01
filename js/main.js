@@ -1,7 +1,9 @@
 // Verdulería FERNICO - Simulador de stock
 // Interacción 100% DOM (sin prompt/alert/console.log)
 
+
 const CLAVE_STORAGE = "stockVerduleriaFernico";
+const RUTA_DATOS = "./data.json";
  
 // ---- 1. Clase Producto ----
 class Producto {
@@ -43,16 +45,34 @@ const btnVaciar = document.getElementById("btn-vaciar");
  
 const inputBusqueda = document.getElementById("input-busqueda");
  
-// ---- 3. Persistencia con localStorage (con manejo de errores) ----
+// El array arranca vacío; se completa en iniciarApp() (localStorage y/o fetch)
+let stockVerduleria = [];
  
-// Guarda el array completo (usa JSON.stringify para serializar objetos)
+// ---- 3. Librería externa (Toastify) para notificar al usuario ----
+function mostrarToast(mensaje, tipo = "info") {
+    const colores = {
+        success: "#2d6a4f",
+        error: "#d62828",
+        info: "#1b4332",
+    };
+ 
+    Toastify({
+        text: mensaje,
+        duration: 4000,
+        gravity: "top",
+        position: "right",
+        style: { background: colores[tipo] ?? colores.info },
+    }).showToast();
+}
+ 
+// ---- 4. Persistencia con localStorage (con manejo de errores) ----
+ 
 function guardarStock(lista) {
     localStorage.setItem(CLAVE_STORAGE, JSON.stringify(lista));
 }
  
 // Recupera el array guardado y reconstruye instancias de Producto.
-// Se usa try-catch-finally porque JSON.parse puede fallar si los datos
-// guardados llegaran a estar corruptos o incompletos.
+// try-catch-finally porque JSON.parse puede fallar si los datos están corruptos.
 function cargarStock() {
     let resultado = null;
  
@@ -65,60 +85,72 @@ function cargarStock() {
  
         const productosPlanos = JSON.parse(datosGuardados);
  
-        // Destructuring: extraemos cada propiedad del objeto plano
         resultado = productosPlanos.map(({ id, nombre, precio, categoria, stock }) => {
             const producto = new Producto(nombre, precio, categoria, stock);
-            producto.id = id; // conservamos el id original guardado
+            producto.id = id;
             return producto;
         });
     } catch (error) {
-        // Si los datos guardados están corruptos, avisamos y arrancamos de cero
-        mensajeForm.textContent = "⚠️ Los datos guardados estaban dañados. Se reinició el stock.";
-        mensajeForm.classList.add("error");
+        mostrarToast("⚠️ Los datos guardados estaban dañados. Se reinició el stock.", "error");
         localStorage.removeItem(CLAVE_STORAGE);
         resultado = null;
     } finally {
-        // Este bloque se ejecuta siempre, haya fallado o no la lectura
         resultado ??= [];
     }
  
     return resultado.length > 0 ? resultado : null;
 }
  
-// Borra todo el stock, tanto del array como del localStorage
 function vaciarStock() {
     localStorage.removeItem(CLAVE_STORAGE);
     stockVerduleria = [];
     renderizarListaActual();
+    mostrarToast("Se vació todo el stock.", "info");
 }
  
-// ---- 4. Array de objetos (se recupera de localStorage si existe) ----
-let stockVerduleria = cargarStock() ?? [
-    new Producto("Tomate", 500, "Verdura", 50),
-    new Producto("Papa", 300, "Verdura", 100),
-    new Producto("Cebolla", 400, "Verdura", 30),
-    new Producto("Zanahoria", 350, "Verdura", 40),
-    new Producto("Lechuga", 250, "Verdura", 20)
-];
- 
-// Si recuperamos productos guardados, el contador de ids debe continuar
-// desde el id más alto que ya exista, para no repetir ids
-if (stockVerduleria.length > 0) {
-    const idMasAlto = Math.max(...stockVerduleria.map(({ id }) => id));
-    Producto.contador = idMasAlto + 1;
+// ---- 5. Consumo de API / JSON local (fetch + async/await + try/catch/finally) ----
+// Pequeña espera artificial: sin esto, al servir data.json localmente
+// el fetch resuelve casi instantáneo y el "Cargando productos..." no llega a verse.
+function esperar(ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
 }
  
-// Si el storage no tenía nada guardado todavía, lo inicializamos ahora
-localStorage.getItem(CLAVE_STORAGE) ?? guardarStock(stockVerduleria);
+async function obtenerProductosDesdeAPI() {
+    const inicio = performance.now();
  
-// ---- 5. Renderizado dinámico ----
+    try {
+        const respuesta = await fetch(RUTA_DATOS);
+ 
+        if (!respuesta.ok) {
+            throw new Error(`Respuesta no exitosa del servidor (${respuesta.status})`);
+        }
+ 
+        const datos = await respuesta.json();
+        mostrarToast("✅ Productos cargados con éxito", "success");
+        return datos;
+    } catch (error) {
+        mostrarToast("❌ No se pudieron cargar los productos. Se usará un stock de respaldo.", "error");
+        return null;
+    } finally {
+        const transcurrido = performance.now() - inicio;
+        const esperaMinima = 1000; // ms
+ 
+        if (transcurrido < esperaMinima) {
+            await esperar(esperaMinima - transcurrido);
+        }
+ 
+        contenedorItems.classList.remove("cargando");
+    }
+}
+ 
+// ---- 6. Renderizado dinámico ----
 function renderizarProductos(lista) {
     contenedorItems.innerHTML = lista.length === 0
         ? `<p class="vacio">No se encontraron productos.</p>`
         : "";
  
     lista.forEach((producto) => {
-        const { nombre, precio, categoria, stock, id } = producto; // destructuring
+        const { nombre, precio, categoria, stock, id } = producto;
  
         const card = document.createElement("div");
         card.classList.add("producto-card");
@@ -140,13 +172,11 @@ function renderizarProductos(lista) {
     activarBotonesDeAccion();
 }
  
-// Calcula y muestra el total invertido en stock (reduce + destructuring)
 function actualizarTotal(lista) {
     const total = lista.reduce((acumulado, { precio, stock }) => acumulado + (precio * stock), 0);
     totalInvertidoSpan.textContent = "$" + total.toFixed(2);
 }
  
-// Conecta los botones de cada tarjeta con sus acciones (se llama después de cada render)
 function activarBotonesDeAccion() {
     document.querySelectorAll(".btn-vender").forEach((btn) => {
         btn.addEventListener("click", (e) => {
@@ -156,10 +186,12 @@ function activarBotonesDeAccion() {
  
             const exito = producto.vender(1);
  
-            mensajeForm.textContent = exito
-                ? `✅ Se vendió 1 unidad de "${producto.nombre}".`
-                : `⚠️ No hay stock suficiente de "${producto.nombre}".`;
-            mensajeForm.classList.toggle("error", !exito);
+            mostrarToast(
+                exito
+                    ? `Se vendió 1 unidad de "${producto.nombre}".`
+                    : `No hay stock suficiente de "${producto.nombre}".`,
+                exito ? "success" : "error"
+            );
  
             guardarStock(stockVerduleria);
             renderizarListaActual();
@@ -173,6 +205,7 @@ function activarBotonesDeAccion() {
             if (!producto) return;
  
             producto.aplicarDescuento(10);
+            mostrarToast(`Se aplicó un 10% de descuento a "${producto.nombre}".`, "success");
  
             guardarStock(stockVerduleria);
             renderizarListaActual();
@@ -185,7 +218,9 @@ function activarBotonesDeAccion() {
             const indice = stockVerduleria.findIndex((p) => p.id === id);
             if (indice === -1) return;
  
+            const nombreEliminado = stockVerduleria[indice].nombre;
             stockVerduleria.splice(indice, 1);
+            mostrarToast(`Se eliminó "${nombreEliminado}" del stock.`, "info");
  
             guardarStock(stockVerduleria);
             renderizarListaActual();
@@ -193,7 +228,6 @@ function activarBotonesDeAccion() {
     });
 }
  
-// Vuelve a renderizar respetando si hay un filtro de búsqueda activo
 function renderizarListaActual() {
     const texto = inputBusqueda.value.toLowerCase().trim();
  
@@ -204,26 +238,18 @@ function renderizarListaActual() {
     renderizarProductos(listaAMostrar);
 }
  
-// ---- 6. Notificación asincrónica (setTimeout) ----
-// Muestra un mensaje complementario (no bloqueante) unos segundos después
-// de haber entrado al simulador, sin interrumpir el resto de la interacción.
-function mostrarNotificacion(mensaje) {
+// ---- 7. Notificación asincrónica complementaria (setTimeout) ----
+function mostrarCupon(mensaje) {
     notificacion.textContent = mensaje;
     notificacion.classList.add("mostrar");
  
-    // La notificación se oculta sola después de unos segundos
     setTimeout(() => {
         notificacion.classList.remove("mostrar");
     }, 6000);
 }
  
-setTimeout(() => {
-    mostrarNotificacion("🎟️ ¡Cupón del día! 15% OFF en tu próxima compra en Verdulería FERNICO.");
-}, 4000);
+// ---- 8. Gestión de eventos ----
  
-// ---- 7. Gestión de eventos ----
- 
-// Evento de click: agregar un nuevo producto al array y al storage
 btnAgregar.addEventListener("click", () => {
     const nombre = inputNombre.value.trim();
     const precio = parseFloat(inputPrecio.value);
@@ -241,10 +267,10 @@ btnAgregar.addEventListener("click", () => {
     const nuevoProducto = new Producto(nombre, precio, categoria, stock);
     stockVerduleria.push(nuevoProducto);
  
-    mensajeForm.textContent = `✅ "${nombre}" fue agregado al stock.`;
+    mensajeForm.textContent = "";
     mensajeForm.classList.remove("error");
+    mostrarToast(`"${nombre}" fue agregado al stock.`, "success");
  
-    // Limpiar inputs
     inputNombre.value = "";
     inputPrecio.value = "";
     inputCategoria.value = "";
@@ -254,17 +280,52 @@ btnAgregar.addEventListener("click", () => {
     renderizarListaActual();
 });
  
-// Evento de click: vaciar todo el stock (array + localStorage)
 btnVaciar.addEventListener("click", () => {
     vaciarStock();
-    mensajeForm.textContent = "🧹 Se vació todo el stock.";
-    mensajeForm.classList.remove("error");
 });
  
-// Evento de teclado: barra de búsqueda que filtra en vivo
 inputBusqueda.addEventListener("keyup", () => {
     renderizarListaActual();
 });
  
-// ---- 8. Render inicial al cargar la página ----
-renderizarProductos(stockVerduleria);
+// ---- 9. Inicialización de la app (async/await) ----
+async function iniciarApp() {
+    contenedorItems.classList.add("cargando");
+    contenedorItems.innerHTML = `<p class="cargando-texto">⏳ Cargando productos...</p>`;
+ 
+    // Prioridad 1: datos ya guardados por el usuario en localStorage
+    const datosGuardados = cargarStock();
+ 
+    if (datosGuardados) {
+        stockVerduleria = datosGuardados;
+        contenedorItems.classList.remove("cargando");
+    } else {
+        // Prioridad 2: primera visita -> traer el stock inicial desde data.json
+        const datosAPI = await obtenerProductosDesdeAPI();
+ 
+        stockVerduleria = datosAPI
+            ? datosAPI.map(({ nombre, precio, categoria, stock }) => new Producto(nombre, precio, categoria, stock))
+            : [
+                // Respaldo por si falla también el fetch
+                new Producto("Tomate", 500, "Verdura", 50),
+                new Producto("Papa", 300, "Verdura", 100),
+                new Producto("Cebolla", 400, "Verdura", 30)
+            ];
+ 
+        guardarStock(stockVerduleria);
+    }
+ 
+    const idMasAlto = stockVerduleria.length > 0
+        ? Math.max(...stockVerduleria.map(({ id }) => id))
+        : 0;
+    Producto.contador = idMasAlto + 1;
+ 
+    renderizarProductos(stockVerduleria);
+ 
+    // Cupón de descuento, unos segundos después de haber entrado
+    setTimeout(() => {
+        mostrarCupon("🎟️ ¡Cupón del día! 15% OFF en tu próxima compra en Verdulería FERNICO.");
+    }, 4000);
+}
+ 
+iniciarApp();

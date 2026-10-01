@@ -285,6 +285,14 @@ input[type="number"]:focus {
     grid-column: 1 / -1;
 }
  
+.cargando-texto {
+    text-align: center;
+    color: var(--verde-medio);
+    font-weight: 600;
+    grid-column: 1 / -1;
+    padding: 20px 0;
+}
+ 
 /* ---- Highlight (estilo cartel de verdulería) ---- */
 .card.highlight {
     background: var(--naranja);
@@ -326,3 +334,4 @@ input[type="number"]:focus {
         padding: 20px;
     }
 }
+ 
